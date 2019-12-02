@@ -1,0 +1,495 @@
+from PIL import Image, ImageFilter
+import numpy as np 
+import cv2
+from matplotlib import pyplot as plt
+import pygame, sys
+from pygame.locals import *
+
+pygame.init()
+Screen = pygame.display.set_mode((500, 500))
+
+
+Board = []
+for i in range(0,8):
+    Board_Row = ["", "", "", "", "", "", "", ""]    
+    Board.append(Board_Row)
+
+Board[0][1] = "wtKnight1"
+Board[0][2] = "wtBishop1"
+Board[0][0] = "wtRook1"
+Board[0][5] = "wtBishop2" 
+Board[0][6] = "wtKnight2"
+Board[0][7] = "wtRook2"
+Board[0][3] = "wtQueen"
+Board[0][4] = "wtKing"
+Board[1][0] = "wtPawn1"
+Board[1][1] = "wtPawn2"
+Board[1][2] = "wtPawn3"
+Board[1][3] = "wtPawn4"
+Board[1][4] = "wtPawn5"
+Board[1][5] = "wtPawn6"
+Board[1][6] = "wtPawn7"
+Board[1][7] = "wtPawn8"
+
+Board[6][0] = "blPawn1"
+Board[6][1] = "blPawn2"
+Board[6][2] = "blPawn3"
+Board[6][3] = "blPawn4"
+Board[6][4] = "blPawn5"
+Board[6][5] = "blPawn6"
+Board[6][6] = "blPawn7"
+Board[6][7] = "blPawn8"
+Board[7][2] = "blBishop1"
+Board[7][1] = "blKnight1" 
+Board[7][0] = "blRook1" 
+Board[7][5] = "blBishop2" 
+Board[7][6] = "blKnight2" 
+Board[7][7] = "blRook2" 
+Board[7][3] = "blQueen" 
+Board[7][4] = "blKing" 
+
+bl_Taken = []
+wt_Taken = []
+
+Color_turn = "wt"
+opp_Color_turn = "bl"
+piece_name = ""
+Matrix_coordinates = []
+
+#Load images for the Chess Board, Pieces, and red square indicating possible position
+Chess_board = Image.open(r"Chess_Board.jpg") 
+wt_Pawn = Image.open(r"wPawn.jpg")
+wt_Knight = Image.open(r"wKnight.jpg")
+wt_Bishop = Image.open(r"wBishop.jpg")
+wt_Rook = Image.open(r"wRook.jpg")
+wt_Queen = Image.open(r"wQueen.jpg")
+wt_King = Image.open(r"wKing.jpg")
+b_Pawn = Image.open(r"bPawn.jpg")
+b_Knight = Image.open(r"bKnight.jpg")
+b_Bishop = Image.open(r"bBishop.jpg")
+b_Rook = Image.open(r"bRook.jpg")
+b_Queen = Image.open(r"bQueen.jpg")
+b_King = Image.open(r"bKing.jpg")
+Red_square = Image.open(r"Red_square.jpg")
+
+#Resize the images so that they fit on the chess board appropriately
+Chess_board.thumbnail((500, 500)) 
+wt_Pawn.thumbnail((40,40))	
+wt_Knight.thumbnail((40,40))
+wt_Bishop.thumbnail((40,40))
+wt_Rook.thumbnail((40,40))
+wt_Queen.thumbnail((40,40)) 
+wt_King.thumbnail((40,40))
+b_Pawn.thumbnail((40,40))
+b_Knight.thumbnail((40,40))
+b_Bishop.thumbnail((40,40))
+b_Rook.thumbnail((40,40))
+b_Queen.thumbnail((40,40))
+b_King.thumbnail((40,40))
+Red_square.thumbnail((40,40))
+
+##### Movement pattern #####
+#Pawn movement 
+def Pawn(x,y):
+    #Generate all the possible positions the piece can move to
+    if "wt" in piece_name:
+        Psble_pstns = [[x, y+1]]
+        if y == 1:
+            Psble_pstns.append([x, y+2])
+        if (x+1) in range(8) and (y+1) in range(8) and "bl" in Board[y+1][x+1]:
+            Psble_pstns.append([x+1,y+1])
+        if (x-1) in range(8) and (y+1) in range(8) and "bl" in Board[y+1][x-1]:
+            Psble_pstns.append([x-1,y+1])    
+    elif "bl" in piece_name:
+        Psble_pstns = [[x, y-1]]        
+        if y == 6:
+            Psble_pstns.append([x, y-2])
+        if (x+1) in range(8) and (y-1) in range(8) and "wt" in Board[y-1][x+1]:
+            Psble_pstns.append([x+1,y-1])
+        if (x-1) in range(8) and (y-1) in range(8) and "wt" in Board[y-1][x-1]:
+            Psble_pstns.append([x-1,y-1])        
+    
+    
+    
+    Pawn_block = False
+    for i in range(0, len(Psble_pstns)): #CHECK THIS AGAIN AND IMPLIMENT PAWN TAKING OTHER PIECES
+        m = Psble_pstns[i][0] 
+        n = Psble_pstns[i][1]        
+        if m in range(0,8) and n in range(0,8) and Board[n][m] == "" and Pawn_block == False and Movement == True: 
+            Image.Image.paste(Chess_board, Red_square,(51+(m)*51, (8-n)*51))
+        elif opp_Color_turn in Board[n][m] and Movement == True:
+            Image.Image.paste(Chess_board, Red_square,(51+(m)*51, (8-n)*51))
+        else:
+            Psble_pstns[i] = [-99,-99]
+            if Board[n][m] != "":
+                Pawn_block = True
+    while [-99,-99] in  Psble_pstns:
+        Psble_pstns.remove([-99,-99])
+    Pstn_Choice = Psble_pstns        
+    return Pstn_Choice
+
+#Knight movement   
+def Knight(x,y):
+    #Generate all the possible positions the piece can move to
+    Psble_pstns = [[x+2, y+1], [x+2, y-1], [x-2, y+1], [x-2, y-1], [x+1, y+2], [x+1, y-2], [x-1, y+2], [x-1, y-2]]
+    for i in range(0, len(Psble_pstns)):
+        path1 = False
+        m = Psble_pstns[i][0] 
+        n = Psble_pstns[i][1]
+        if m < 0 or m > 7 or n < 0 or n > 7 or Color_turn in Board[n][m]:
+            Psble_pstns[i] = [-99,-99]
+        elif m in range(0,8) and n in range(0,8) and Movement == True: 
+            Image.Image.paste(Chess_board, Red_square, (51+(m)*51, (8-n)*51)) 
+        else: 
+            Psble_pstns[i] = [-99,-99]
+
+    while [-99,-99] in Psble_pstns:
+        Psble_pstns.remove([-99,-99])    
+    return Psble_pstns        
+
+
+#Bishop movement (you have option of moving any number of rows and columns up/down and to the left/right)
+def Bishop(x,y):
+    #Convert the matrix coordinates into the coordinates for the chessboard
+    
+    #Generate all the possible positions the piece can move to
+    Psble_pstns = []
+    corner_1 = False
+    corner_2 = False
+    corner_3 = False
+    corner_4 = False
+    #print((x, y))
+    for i in range(1, 7):      
+        if ((x-i < 0 or x-i > 7) or (y-i < 0 or y-i > 7)) or Color_turn in Board[y-i][x-i]:
+            corner_1 = True
+        elif((x-i > -1 and x-i < 8) and (y-i > -1 and y-i < 8)) and corner_1 != True:
+            Psble_pstns.append([(x-i), (y-i)])
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (round(55+(x-i)*50.5), round(55+(7-(y-i))*50.5)))
+            if Board[(y-i)][(x-i)] != "":               
+                corner_1 = True  
+        else:
+            corner_1 = True
+        if ((x+i < 0 or x+i > 7) or (y-i < 0 or y-i > 7)) or Color_turn in Board[y-i][x+i]:
+            corner_2 = True
+        elif((x+i > -1 and x+i < 8) and (y-i > -1 and y-i < 8)) and corner_2 != True:
+            Psble_pstns.append([(x+i), (y-i)]) 
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (round(55+(x+i)*50.5), round(55+(7-(y-i))*50.5)))
+            if Board[(y-i)][(x+i)] != "":             
+                corner_2 = True            
+        else:
+            corner_2 = True
+        if ((x-i < 0 or x-i > 7) or (y+i < 0 or y+i > 7)) or Color_turn in Board[y+i][x-i]:
+            corner_3 = True
+        elif((x-i > -1 and x-i < 8) and (y+i > -1 and y+i < 8)) and corner_3 != True:
+            Psble_pstns.append([(x-i), (y+i)])
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (round(55+(x-i)*50.5), round(55+(7-(y+i))*50.5)))
+            if Board[(y+i)][(x-i)] != "":             
+                corner_3 = True
+        else:
+            corner_3 = True
+        if ((x+i < 0 or x+i > 7) or (y+i < 0 or y+i > 7)) or Color_turn in Board[y+i][x+i]:
+            corner_4 = True
+        elif((x+i > -1 and x+i < 8) and (y+i > -1 and y+i < 8)) and corner_4 != True:
+            Psble_pstns.append([(x+i), (y+i)])
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (round(55+(x+i)*50.5), round(55+(7-(y+i))*50.5)))
+            if Board[(y+i)][(x+i)] != "":            
+                corner_4 = True            
+        else:
+            corner_4 = True
+            
+    return Psble_pstns        
+
+
+
+
+#Rook movement (You have the option of moving any number of blocks up/down/left/right)
+def Rook(x,y): 
+    #Generate all the possible positions the piece can move to
+    Psble_pstns = []
+    path1 = False
+    path2 = False
+    path3 = False
+    path4 = False
+    
+    for i in range(1, 7):
+        if (y-i < 0 or y-i > 7) or Color_turn in Board[y-i][x]:
+            path1 = True
+        elif(y-i > -1 and y-i < 8) and path1 != True:
+            Psble_pstns.append([x, y-i])
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (51+((x))*51, (8-(y-i))*51))
+            if Board[y-i][x] != "":              
+                path1 = True
+        else:
+            path1 = True
+        if (y+i < 0 or y+i > 7) or Color_turn in Board[y+i][x]:
+            path2 = True
+        elif(y+i > -1 and y+i < 8) and path2 != True:
+            Psble_pstns.append([x, y+i])
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (51+((x))*51, (8-(y+i))*51))
+            if Board[y+i][x] != "":              
+                path2 = True
+        else:
+            path2 = True
+        if (x-i < 0 or x-i > 7) or Color_turn in Board[y][x-i]:
+            path3 = True
+        elif(x-i > -1 and x-i < 8) and path3 != True:
+            Psble_pstns.append([x-i, y])
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (51+((x-i))*51, (8-(y))*51))
+            if Board[y][x-i] != "":              
+                path3 = True
+        else:
+            path3 = True
+        if (x+i < 0 or x+i > 7) or Color_turn in Board[y][x+i]:
+            path4 = True
+        elif(x+i > -1 and x+i < 8) and path4 != True:
+            Psble_pstns.append([x+i, y])
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (51+((x+i))*51, (8-(y))*51))
+            if Board[y][x+i] != "":               
+                path4 = True
+        else:
+            path4 = True
+    #print(Psble_pstns)
+    return Psble_pstns        
+
+
+#King movement (You have the option of moving 1 block in any direction)
+def King(x,y):
+
+    #Generate all the possible positions the piece can move to
+    Psble_pstns = [[x, y+1], [x, y-1], [x+1, y], [x-1, y], [x+1, y+1], [x-1, y+1], [x+1, y-1], [x-1, y-1]]
+    for i in range(0, len(Psble_pstns)):
+        m = Psble_pstns[i][0] 
+        n = Psble_pstns[i][1]         
+        if m in range(0,8) and n in range(0,8) and (Board[n][m] == "" or opp_Color_turn in Board[n][m]): 
+            if Movement == True:
+                Image.Image.paste(Chess_board, Red_square, (51+((m))*51, (8-(n))*51))
+        else:
+            Psble_pstns[i] = [-99,-99]
+    while [-99,-99] in Psble_pstns:
+        Psble_pstns.remove([-99,-99])
+    return Psble_pstns
+     
+
+#Queen movement (You have the option of moving like a bishop or rook)
+def Queen(x,y): 
+    
+    Psble_pstns.append(Bishop(x,y))
+    Psble_pstns.append(Rook(x,y))
+
+
+###Image construction###
+for i in range(0, 8):
+    for x in range(0, 8):
+        if "wtPawn" in Board[i][x]:
+            Image.Image.paste(Chess_board, wt_Pawn,(59+(x)*51, (8-i)*51))
+        elif "wtRook" in Board[i][x]:
+            Image.Image.paste(Chess_board, wt_Rook,(59+(x)*51, (8-i)*51))
+        elif "wtKnight" in Board[i][x]:
+            Image.Image.paste(Chess_board, wt_Knight,(59+(x)*51, (8-i)*51))
+        elif "wtBishop" in Board[i][x]:
+            Image.Image.paste(Chess_board, wt_Bishop,(59+(x)*51, (8-i)*51))
+        elif "wtQueen" in Board[i][x]:
+            Image.Image.paste(Chess_board, wt_Queen,(59+(x)*51, (8-i)*51))
+        elif "wtKing" in Board[i][x]:
+            Image.Image.paste(Chess_board, wt_King,(59+(x)*51, (8-i)*51))
+        elif "blPawn" in Board[i][x]:
+            Image.Image.paste(Chess_board, b_Pawn,(59+(x)*51, (8-i)*51))
+        elif "blRook" in Board[i][x]:
+            Image.Image.paste(Chess_board, b_Rook,(59+(x)*51, (8-i)*51))
+        elif "blKnight" in Board[i][x]:
+            Image.Image.paste(Chess_board, b_Knight,(59+(x)*51, (8-i)*51))
+        elif "blBishop" in Board[i][x]:
+            Image.Image.paste(Chess_board, b_Bishop,(59+(x)*51, (8-i)*51))
+        elif "blQueen" in Board[i][x]:
+            Image.Image.paste(Chess_board, b_Queen,(59+(x)*51, (8-i)*51))
+        elif "blKing" in Board[i][x]:
+            Image.Image.paste(Chess_board, b_King,(59+(x)*51, (8-i)*51))
+
+
+Chess_board.save("final_img.jpg")
+pygame.display.set_caption("It's the " + str(Color_turn) + " player's turn!")
+final_img = pygame.image.load('final_img.jpg')
+Screen.blit(final_img, (0, 0))
+pygame.display.flip()
+
+
+Choices = []
+Movement = True
+
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            x, y = event.pos
+            Matrix_coordinates.append([round((x - 70)/50), 7 - round((y - 70)/50)])       
+            Under_Check = False
+
+            #Display the possible movement options for the selected piece            
+            if len(Matrix_coordinates) == 1 and Matrix_coordinates[0][0] in range(8) and Matrix_coordinates[0][1] in range(8):
+                piece_name = Board[Matrix_coordinates[0][1]][Matrix_coordinates[0][0]] 
+                Movement = True
+                if piece_name == "":
+                    print("Pick a " + str(Color_turn) + " piece!")
+                    Choices = []
+                    Matrix_coordinates = []                    
+                #If the player selects the opponents piece, tell them to pick a different piece and reset the stored values
+                if opp_Color_turn in piece_name:
+                    print("Pick your own piece!")
+                    Choices = []
+                    Matrix_coordinates = []
+                    piece_name = ""
+                #Find the tiles that the selected piece can move to
+                if "Pawn" in piece_name:
+                    Choices = Pawn(Matrix_coordinates[0][0], Matrix_coordinates[0][1])  
+                elif "Bishop" in piece_name:
+                    Choices = Bishop(Matrix_coordinates[0][0], Matrix_coordinates[0][1])
+                elif "Rook" in piece_name:
+                    Choices = Rook(Matrix_coordinates[0][0], Matrix_coordinates[0][1])
+                elif "Knight" in piece_name:
+                    Choices = Knight(Matrix_coordinates[0][0], Matrix_coordinates[0][1])
+                elif "Queen" in piece_name:
+                    Choices = Bishop(Matrix_coordinates[0][0], Matrix_coordinates[0][1])
+                    Choices.append(Rook(Matrix_coordinates[0][0], Matrix_coordinates[0][1]))
+                elif "King" in piece_name:
+                    Choices = King(Matrix_coordinates[0][0], Matrix_coordinates[0][1])    
+                
+                Chess_board.save("final_img.jpg")
+                
+                final_img = pygame.image.load('final_img.jpg')
+                Screen.blit(final_img, (0, 0))
+                pygame.display.flip()                
+                    
+            elif Matrix_coordinates[0][0] < 0 or Matrix_coordinates[0][0] > 7 or Matrix_coordinates[0][1] < 0 or Matrix_coordinates[0][1] > 7:
+                print("Try again!")
+                Matrix_coordinates.remove(Matrix_coordinates[0]) 
+                
+            #Moving the selected piece to the new location
+            if len(Matrix_coordinates) == 2 and Matrix_coordinates[1] in Choices:
+
+                Board[Matrix_coordinates[0][1]][Matrix_coordinates[0][0]] = ""
+                if Board[Matrix_coordinates[1][1]][Matrix_coordinates[1][0]] != "":
+                    if Color_turn == "wt":
+                        wt_Taken.append(Board[Matrix_coordinates[1][1]][Matrix_coordinates[1][0]])
+                    else:
+                        bl_Taken.append(Board[Matrix_coordinates[1][1]][Matrix_coordinates[1][0]])                         
+                
+                Board[Matrix_coordinates[1][1]][Matrix_coordinates[1][0]] = piece_name
+                
+               
+                
+                Chess_board = Image.open(r"Chess_Board.jpg")
+                Chess_board.thumbnail((500, 500))
+                
+                for i in range(0, 8):
+                    for x in range(0, 8):
+                        if "wtPawn" in Board[i][x]:
+                            Image.Image.paste(Chess_board, wt_Pawn,(59+(x)*51, (8-i)*51))
+                        elif "wtRook" in Board[i][x]:
+                            Image.Image.paste(Chess_board, wt_Rook,(59+(x)*51, (8-i)*51))
+                        elif "wtKnight" in Board[i][x]:
+                            Image.Image.paste(Chess_board, wt_Knight,(59+(x)*51, (8-i)*51))
+                        elif "wtBishop" in Board[i][x]:
+                            Image.Image.paste(Chess_board, wt_Bishop,(59+(x)*51, (8-i)*51))
+                        elif "wtQueen" in Board[i][x]:
+                            Image.Image.paste(Chess_board, wt_Queen,(59+(x)*51, (8-i)*51))
+                        elif "wtKing" in Board[i][x]:
+                            Image.Image.paste(Chess_board, wt_King,(59+(x)*51, (8-i)*51))
+                        elif "blPawn" in Board[i][x]:
+                            Image.Image.paste(Chess_board, b_Pawn,(59+(x)*51, (8-i)*51))
+                        elif "blRook" in Board[i][x]:
+                            Image.Image.paste(Chess_board, b_Rook,(59+(x)*51, (8-i)*51))
+                        elif "blKnight" in Board[i][x]:
+                            Image.Image.paste(Chess_board, b_Knight,(59+(x)*51, (8-i)*51))
+                        elif "blBishop" in Board[i][x]:
+                            Image.Image.paste(Chess_board, b_Bishop,(59+(x)*51, (8-i)*51))
+                        elif "blQueen" in Board[i][x]:
+                            Image.Image.paste(Chess_board, b_Queen,(59+(x)*51, (8-i)*51))
+                        elif "blKing" in Board[i][x]:
+                            Image.Image.paste(Chess_board, b_King,(59+(x)*51, (8-i)*51))
+                
+                Movement = False
+                
+                Chess_board.save("final_img.jpg")                
+                final_img = pygame.image.load('final_img.jpg')
+                Screen.blit(final_img, (0, 0))
+                pygame.display.flip()  
+                
+                #Evaluating check 
+                #Determing the possible movements of the enemy team
+                Our_movement = []
+                #
+                for i in range(0, 8):
+                    for x in range(0, 8):
+                        if (str(Color_turn) + "Pawn") in Board[i][x]:
+                            Our_movement.append(Pawn(x, i))
+                        elif (str(Color_turn) + "Rook") in Board[i][x]:
+                            Our_movement.append(Rook(x, i))
+                        elif (str(Color_turn) + "Knight") in Board[i][x]:
+                            Our_movement.append(Knight(x, i))
+                        elif (str(Color_turn) + "Bishop") in Board[i][x]:
+                            Our_movement.append(Bishop(x, i))
+                        elif (str(Color_turn) + "Queen") in Board[i][x]:
+                            Our_movement.append(Bishop(x, i))
+                            Our_movement.append(Rook(x, i))
+                        elif (str(Color_turn) + "King") in Board[i][x]:
+                            Our_movement.append(King(x, i))
+                
+   
+                #Determine the position of the King and his movements
+                King_movements = []
+                King_position = []
+                for i in range(0, 8):
+                    for x in range(0, 8):
+                        if (str(opp_Color_turn) + "King") in Board[i][x]:
+                            King_movements = King(x, i)
+                            King_position = [[x, i]]
+
+                
+                #If the king's current position is in the array of the possible movements of the enemy team, then he is under check
+                for x in range(len(Our_movement)):
+                    if King_position[0] in Our_movement[x]:
+                        Under_Check = True
+                        print("The " + str(opp_Color_turn) + "'s King is under Check!!")
+                    
+                
+                #Evaluating checkmate
+                #If all of the King's possible movements are in the array of possible movements of the enemy team, then checkmate is achieved
+                Check_Mate_Counter = 0
+
+                for x in range(len(Our_movement)):
+                    for i in range(len(King_movements)):
+                        if King_movements[i] in Our_movement[x]: 
+                            King_movements[i] = [-99, -99]
+                            Check_Mate_Counter += 1
+                if Check_Mate_Counter == len(King_movements):
+                    Check_Mate = True
+                    print("Checkmate!!!")
+                
+                #Reseting the turn
+                if Color_turn == "wt":
+                    Color_turn = "bl"
+                    opp_Color_turn = "wt"                    
+                else:
+                    Color_turn = "wt"
+                    opp_Color_turn = "bl"
+
+                piece_name = ""
+                Matrix_coordinates = []
+                Choices = []
+               
+
+            
+        if event.type == QUIT:
+            pygame.quit()
+
+sys.exit()
+
+pygame.display.update()
